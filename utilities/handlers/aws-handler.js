@@ -2,6 +2,27 @@ const AWS = require('aws-sdk');
 var Q = require('q');
 const fs = require('fs');
 
+const MLAPP_BUCKETS = [
+    {
+        Name: 'mlapp-objects'
+    },
+    {
+        Name: 'mlapp-csvs'
+    },
+    {
+        Name: 'mlapp-configs'
+    },
+    {
+        Name: 'mlapp-metadata'
+    },
+    {
+        Name: 'mlapp-imgs'
+    },
+    {
+        Name: 'mlapp-logs'
+    }
+]
+
 const s3 = new AWS.S3({
     accessKeyId: global_config.filestore.settings.accessKey,
     secretAccessKey: global_config.filestore.settings.secretKey
@@ -100,48 +121,43 @@ function innerUploadFile(filename, path, bucket) {
 
 function queryFileStorage(prefix){
     var deferred = Q.defer();
-    s3.listBuckets(function(err, res) {
-        var buckets = res.Buckets;
-        if (err) {
-            deferred.reject(err);
-        }
-        
-        var promises = [];
-        var results = {};
+    var buckets = MLAPP_BUCKETS;
+    
+    var promises = [];
+    var results = {};
 
-        for(var i=0; i < buckets.length; i++){
-            promises.push(new Promise((resolve, reject) => {
-                var current_i = i;
+    for(var i=0; i < buckets.length; i++){
+        promises.push(new Promise((resolve, reject) => {
+            var current_i = i;
+            
+            const s3params = {
+                Bucket: buckets[current_i].Name,
+                Prefix: prefix,
+            };
+            
+            results[buckets[current_i].Name] = []
+            s3.listObjectsV2 (s3params, (err, stream) => {
+                if (err) {
+                    reject (err);
+                }
 
-                const s3params = {
-                    Bucket: buckets[current_i].Name,
-                    Prefix: prefix,
-                };
-                
-                results[buckets[current_i].Name] = []
-                s3.listObjectsV2 (s3params, (err, stream) => {
-                    if (err) {
-                        reject (err);
-                    }
+                for (var j=0;j<stream.Contents.length;j++){
+                    results[buckets[current_i].Name].push({
+                        file_name: stream.Contents[j].Key,
+                        last_modified: stream.Contents[j].LastModified
+                    });
+                }
+                    
+                resolve();
 
-                    for (var j=0;j<stream.Contents.length;j++){
-                        results[buckets[current_i].Name].push({
-                            file_name: stream.Contents[j].Key,
-                            last_modified: stream.Contents[j].LastModified
-                        });
-                    }
-                        
-                    resolve();
-
-                });                
-            }));
-        }
-        Promise.all(promises).then(function(){
-            deferred.resolve(results);
-        })
-        .catch(function(err){
-            deferred.reject(err);
-        });
+            });                
+        }));
+    }
+    Promise.all(promises).then(function(){
+        deferred.resolve(results);
+    })
+    .catch(function(err){
+        deferred.reject(err);
     });
     return deferred.promise;
 }

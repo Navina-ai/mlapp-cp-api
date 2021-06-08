@@ -23,8 +23,8 @@ RUN npm install
 # Bundle app source
 COPY . .
 
-RUN useradd appuser && chown -R appuser /usr/src/app
-USER appuser
+# RUN useradd appuser && chown -R appuser /usr/src/app
+# USER appuser
 
 EXPOSE 3000
 ENTRYPOINT [ "/bin/bash", "-c" ]

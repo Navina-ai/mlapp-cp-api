@@ -61,9 +61,9 @@ function innerDownloadFile(filename, bucket_name, path) {
             console.log(err)
         }
         else {
-            fs.writeFileSync(fullPath, data.Body.toString());
+            // fs.writeFileSync(fullPath, data.Body.toString());
             deferred.resolve(fullPath);
-            console.log('File downloaded successfully.')            
+            console.log('File downloaded successfully. - NOT!')            
         }
     });
     return deferred.promise;

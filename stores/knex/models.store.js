@@ -49,7 +49,7 @@ let store = {
       return knex.select().from('analysis_results').where('model_id', model_id);
     },
     getModelsByPipeline(pipeline) {
-      return knex.select().from('analysis_results').where('pipeline', pipeline);
+      return knex.select().from('analysis_results');
     },
     createModel (model) {
       return knex('analysis_results').insert(model);

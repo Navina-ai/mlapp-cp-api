@@ -15,6 +15,11 @@ let store = {
     getVersion(env) {
       return knex.select("version").from('toolchains').where('env', env);
     },
+    createEnvironment(env) {
+      env.version = "0";
+      env.updating_to = "0";
+      return knex('toolchains').insert(env);
+    },
     setStatus(env, version) {
       return knex('toolchains').where('env', env).update({updating_to: version});
     }

@@ -18,5 +18,6 @@ router.post('/select_model', ctrl.selectModel);
 router.get('/models_history', ctrl.getAllModelsHistory);
 router.get('/models/asset/:assetName', ctrl.getModelsByAssetName);
 router.get('/models/selected/:assetName', ctrl.getSelectedModelByAssetName);
+router.get('/available_pipelines', ctrl.getAvailablePipelines);
 
 module.exports = router;

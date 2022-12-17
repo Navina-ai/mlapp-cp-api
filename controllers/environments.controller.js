@@ -11,6 +11,13 @@ let controller = {
         .then(response.successClbk(res))
         .catch(response.errorClbk(res));
     },
+    createEnvironment: function(req, res){
+        let env = req.body;
+
+        store.createEnvironment(env)
+        .then(res.send(env))
+        .catch(response.errorClbk(res));
+    },
     changeStagingVersion: function(req, res){ 
         toolchainstore.request_toolchain_execution(req, res, "staging",req.body.pipeline_version);
         model_store.updateModel(req.body.model_id, {environment: "staging"});

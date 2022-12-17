@@ -51,6 +51,9 @@ let store = {
     getModelsByPipeline(pipeline) {
       return knex.select().from('analysis_results').where('pipeline', pipeline);
     },
+    getAvailablePipelines() {
+      return knex.distinct().from('analysis_results').pluck('pipeline');
+    },
     createModel (model) {
       return knex('analysis_results').insert(model);
     },

@@ -118,6 +118,11 @@ let controller = {
         .catch(function(){
         })
     },
+    getAvailablePipelines: function(req, res){
+        store.getAvailablePipelines({})
+        .then(response.successClbk(res))
+        .catch(response.errorClbk(res));
+    },
 };
 
 module.exports = controller;

@@ -14,7 +14,7 @@ var cert_64 = (global_config.message_queue.settings.cert_64) ?
     new DataView(toArrayBuffer(Buffer.from(global_config.message_queue.settings.cert_64, 'base64'))) : 
     undefined  
 
-const rascal_config = 
+const rascal_config =
 {
     "vhosts": {
         "/": {
@@ -39,138 +39,55 @@ const rascal_config =
                     }
                 }
             },
-            queues: {
-                [global_config.message_queue.send_analysis_topic['default']]: {
-                    "assert": true,
-                    "options": {
-                        "durable": true,
-                        "exclusive": false,
-                        "persistent": true
-                    }
-                },
-                [global_config.message_queue.send_analysis_topic['dev']]: {
-                    "assert": true,
-                    "options": {
-                        "durable": true,
-                        "exclusive": false,
-                        "persistent": true
-                    }
-                },
-                [global_config.message_queue.send_analysis_topic['staging']]: {
-                    "assert": true,
-                    "options": {
-                        "durable": true,
-                        "exclusive": false,
-                        "persistent": true
-                    }
-                },
-                [global_config.message_queue.send_analysis_topic['prod']]: {
-                    "assert": true,
-                    "options": {
-                        "durable": true,
-                        "exclusive": false,
-                        "persistent": true
-                    }
-                },
-                [global_config.message_queue.response_analysis_topic]: {
-                    "assert": true,
-                    "options": {
-                        "durable": true,
-                        "exclusive": false,
-                        "persistent": true
-                    }
-                }
-            },
-            bindings: {
-                "create_jobs_default": {
-                    "source": "amq.topic",
-                    "destination": global_config.message_queue.send_analysis_topic['default'],
-                    "destinationType": "queue",
-                    "bindingKey": global_config.message_queue.send_analysis_topic['default']
-                },
-                "create_jobs_dev": {
-                    "source": "amq.topic",
-                    "destination": global_config.message_queue.send_analysis_topic['dev'],
-                    "destinationType": "queue",
-                    "bindingKey": global_config.message_queue.send_analysis_topic['dev']
-                },
-                "create_jobs_staging": {
-                    "source": "amq.topic",
-                    "destination": global_config.message_queue.send_analysis_topic['staging'],
-                    "destinationType": "queue",
-                    "bindingKey": global_config.message_queue.send_analysis_topic['staging']
-                },
-                "create_jobs_prod": {
-                    "source": "amq.topic",
-                    "destination": global_config.message_queue.send_analysis_topic['prod'],
-                    "destinationType": "queue",
-                    "bindingKey": global_config.message_queue.send_analysis_topic['prod']
-                },
-                "job_run_finished": {
-                    "source": "amq.topic",
-                    "destination": global_config.message_queue.response_analysis_topic,
-                    "destinationType": "queue",
-                    "bindingKey": global_config.message_queue.response_analysis_topic
-                }
-            },
-            publications: {
-                "create_jobs_default": {
-                    vhost: "/",
-                    exchange: "amq.topic",
-                    routingKey: global_config.message_queue.send_analysis_topic['default'],
-                    confirm: false,
-                    options: {
-                        persistent: true,
-                        retry: { delay: 1000 }
-                    }
-                },
-                "create_jobs_dev": {
-                    vhost: "/",
-                    exchange: "amq.topic",
-                    routingKey: global_config.message_queue.send_analysis_topic['dev'],
-                    confirm: false,
-                    options: {
-                        persistent: true,
-                        retry: { delay: 1000 }
-                    }
-                },
-                "create_jobs_staging": {
-                    vhost: "/",
-                    exchange: "amq.topic",
-                    routingKey: global_config.message_queue.send_analysis_topic['staging'],
-                    confirm: false,
-                    options: {
-                        persistent: true,
-                        retry: { delay: 1000 }
-                    }
-                },
-                "create_jobs_prod": {
-                    vhost: "/",
-                    exchange: "amq.topic",
-                    routingKey: global_config.message_queue.send_analysis_topic['prod'],
-                    confirm: false,
-                    options: {
-                        persistent: true,
-                        retry: { delay: 1000 }
-                    }
-                }
-            },
-            subscriptions: {
-                "get_finished_jobs": {
-                    vhost: "/",
-                    queue: global_config.message_queue.response_analysis_topic,
-                    contentType: "application/json",
-                    prefetch: 1,
-                    retry: { delay: 1000 }
-                }
-            }
+            queues: {},
+            bindings: {},
+            publications: {},
+            subscriptions: {}
         }
     }
-}
+};
+
+const queue_options = {
+    "assert": true,
+    "options": {
+        "durable": true,
+        "exclusive": false,
+        "persistent": true
+    }
+};
 
 async function rascal_produce(env, msg){
     // creating connection
-    rascal.Broker.create(rascal_config, (err, broker) => {
+    if (env === null) {
+      env = "default";
+    }
+    var queue_name;
+    if (env === "default") {
+      queue_name = "analysis_general_listen";
+    } else {
+      queue_name = "analysis_general_listen_" + env;
+    }
+    var publication_name = "create_jobs_" + env;
+    produce_rascal_config = JSON.parse(JSON.stringify(rascal_config));
+    produce_rascal_config["vhosts"]["/"]["queues"][queue_name] = queue_options;
+    produce_rascal_config["vhosts"]["/"]["bindings"][publication_name] = {
+        "source": "amq.topic",
+        "destination": queue_name,
+        "destinationType": "queue",
+        "bindingKey": queue_name
+    };
+    produce_rascal_config["vhosts"]["/"]["publications"][publication_name] = {
+        vhost: "/",
+        exchange: "amq.topic",
+        routingKey: queue_name,
+        confirm: false,
+        options: {
+            persistent: true,
+            retry: { delay: 1000 }
+        }
+    };
+
+    rascal.Broker.create(produce_rascal_config, (err, broker) => {
         if (err) {
             console.error(err);
             return;
@@ -179,7 +96,7 @@ async function rascal_produce(env, msg){
         broker.on('error', console.error);
 
         // Publish a message
-        broker.publish('create_jobs_' + env, msg, (err, publication) => {
+        broker.publish(publication_name, msg, (err, publication) => {
             if (err) return console.log(err)
             publication
                 .on('success', function(){
@@ -197,7 +114,26 @@ var sendToQueue = function(env, msg){
 
 async function rascal_consume(_on_callback){
     // creating connection
-    rascal.Broker.create(rascal_config, (err, broker) => {
+    var queue_name = "analysis_respond";
+    var binding_name = "job_run_finished";
+    var subscription_name = "get_finished_jobs";
+    consume_rascal_config = JSON.parse(JSON.stringify(rascal_config));
+    consume_rascal_config["vhosts"]["/"]["queues"][queue_name] = queue_options;
+    consume_rascal_config["vhosts"]["/"]["bindings"][binding_name] = {
+        "source": "amq.topic",
+        "destination": queue_name,
+        "destinationType": "queue",
+        "bindingKey": queue_name
+    };
+    consume_rascal_config["vhosts"]["/"]["subscriptions"][subscription_name] = {
+        vhost: "/",
+        queue: queue_name,
+        contentType: "application/json",
+        prefetch: 1,
+        retry: { delay: 1000 }
+    };
+
+    rascal.Broker.create(consume_rascal_config, (err, broker) => {
         if (err) {
             console.error(err);
             return;

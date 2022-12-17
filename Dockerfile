@@ -1,4 +1,4 @@
-FROM node:10
+FROM node:alpine
 
 # Create app directory
 WORKDIR /usr/src/app
@@ -16,16 +16,16 @@ RUN chmod +x /commands.sh
 COPY wait-for-it.sh /wait-for-it.sh
 RUN chmod +x /wait-for-it.sh
 
-RUN npm install
-# If you are building your code for production
-# RUN npm ci --only=production
+RUN npm ci --only=production
 
 # Bundle app source
 COPY . .
 
-RUN useradd appuser && chown -R appuser /usr/src/app
+RUN apk update && apk upgrade && apk add bash
+
+RUN adduser --disabled-password appuser && chown -R appuser /usr/src/app
 USER appuser
 
 EXPOSE 3000
-ENTRYPOINT [ "/bin/bash", "-c" ]
+ENTRYPOINT [ "/bin/bash" ]
 CMD [ "/commands.sh" ]

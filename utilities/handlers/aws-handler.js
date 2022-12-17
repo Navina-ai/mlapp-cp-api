@@ -2,6 +2,27 @@ const AWS = require('aws-sdk');
 var Q = require('q');
 const fs = require('fs');
 
+const MLAPP_BUCKETS = [
+    {
+        Name: 'mlapp-objects'
+    },
+    {
+        Name: 'mlapp-csvs'
+    },
+    {
+        Name: 'mlapp-configs'
+    },
+    {
+        Name: 'mlapp-metadata'
+    },
+    {
+        Name: 'mlapp-imgs'
+    },
+    {
+        Name: 'mlapp-logs'
+    }
+]
+
 const s3 = new AWS.S3({
     accessKeyId: global_config.filestore.settings.accessKey,
     secretAccessKey: global_config.filestore.settings.secretKey
@@ -15,7 +36,7 @@ function downloadFile(fileName, bucket, path) {
             deferred.resolve(result);
         }).catch(function(e){
             deferred.reject(e.message);
-        });           
+        });
     }
     catch(e){
         console.log(e.message);
@@ -25,47 +46,48 @@ function downloadFile(fileName, bucket, path) {
 }
 
 function innerDownloadFile(filename, bucket_name, path) {
-    bucket_name = global_config.filestore.settings.bucket; // hard code bucket from config
     var deferred = Q.defer();
-    var fullPath = __dirname + "/../.." + path;
-    
+    var fullPath = "/tmp" + path;
+
     var options = {
         Bucket    : bucket_name,
         Key    : filename,
     };
 
 
-    s3.getObject(options, function(err, data) {  
+    s3.getObject(options, function(err, data) {
         if (err) {
             deferred.reject(err);
             console.log(err)
         }
         else {
-            fs.writeFileSync(fullPath, data.Body.toString());
-            deferred.resolve(fullPath);
-            console.log('File downloaded successfully.')            
+            fs.mkdir('/tmp/public/download/', { recursive: true }, (err) => {
+                if (err) throw err;
+                fs.writeFileSync(fullPath, data.Body.toString());
+                deferred.resolve(fullPath);
+                console.log('File downloaded successfully.')
+            });
         }
     });
     return deferred.promise;
 }
 
 function uploadFile(file, bucket) {
-    bucket = global_config.filestore.settings.bucket; // hard code bucket from config
     var deferred = Q.defer();
     // Using fPutObject API upload your file to the bucket.
     try{
         s3.bucketExists(bucket, function(res) {
             if (res && res.code == "NotFound"){
-                s3.makeBucket(bucket, global_config.filestore.settings.region, function(err) {
-                    if (err) return console.log(err)            
+                s3.makeBucket(bucket, 'us-east-2', function(err) {
+                    if (err) return console.log(err)
                     console.log('Bucket created successfully.')
                     innerUploadFile(file.filename, file.destination+file.filename, bucket).then(function(result) {
                         deferred.resolve();
                     }).catch(function(e){
                         deferred.reject(e.message);
                     });
-                });  
-            }  
+                });
+            }
             else{
                 innerUploadFile(file.filename, file.destination+"/"+file.filename, bucket).then(function(result) {
                     deferred.resolve();
@@ -75,7 +97,7 @@ function uploadFile(file, bucket) {
             }
         });
 
-             
+
     }
     catch(e){
         console.log(e.message);
@@ -94,7 +116,7 @@ function innerUploadFile(filename, path, bucket) {
         }
         else{
             deferred.resolve();
-            console.log('File uploaded successfully.')            
+            console.log('File uploaded successfully.')
         }
     });
     return deferred.promise;
@@ -102,27 +124,44 @@ function innerUploadFile(filename, path, bucket) {
 
 function queryFileStorage(prefix){
     var deferred = Q.defer();
-    const s3params = {
-        Bucket: global_config.filestore.settings.bucket,
-        Prefix: prefix,
-    };
-    
-    results = []
-    s3.listObjectsV2 (s3params, (err, stream) => {
-        if (err) {
-            deferred.reject (err);
-        }
+    var buckets = MLAPP_BUCKETS;
 
-        for (var j=0;j<stream.Contents.length;j++){
-            results.push({
-                file_name: stream.Contents[j].Key,
-                last_modified: stream.Contents[j].LastModified
+    var promises = [];
+    var results = {};
+
+    for(var i=0; i < buckets.length; i++){
+        promises.push(new Promise((resolve, reject) => {
+            var current_i = i;
+
+            const s3params = {
+                Bucket: buckets[current_i].Name,
+                Prefix: prefix,
+            };
+
+            results[buckets[current_i].Name] = []
+            s3.listObjectsV2 (s3params, (err, stream) => {
+                if (err) {
+                    reject (err);
+                }
+
+                for (var j=0;j<stream.Contents.length;j++){
+                    results[buckets[current_i].Name].push({
+                        file_name: stream.Contents[j].Key,
+                        last_modified: stream.Contents[j].LastModified
+                    });
+                }
+
+                resolve();
+
             });
-        }
-            
-        defered.resolve();
-
-    });                
+        }));
+    }
+    Promise.all(promises).then(function(){
+        deferred.resolve(results);
+    })
+    .catch(function(err){
+        deferred.reject(err);
+    });
     return deferred.promise;
 }
 

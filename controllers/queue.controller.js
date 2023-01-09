@@ -91,7 +91,6 @@ var onMessageCallback = function(msg, ack){
     if (typeof msg !== 'object') { 
         msg = JSON.parse(msg); 
     }
-
     var job_id = msg.job_id;
     var model_id = msg.result && msg.result[0] || null;
 

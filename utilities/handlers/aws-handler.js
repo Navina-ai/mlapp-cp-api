@@ -63,7 +63,7 @@ function innerDownloadFile(filename, bucket_name, path) {
         else {
             fs.mkdir('/tmp/public/download/', { recursive: true }, (err) => {
                 if (err) throw err;
-                fs.writeFileSync(fullPath, data.Body.toString());
+                fs.writeFileSync(fullPath, data.Body);
                 deferred.resolve(fullPath);
                 console.log('File downloaded successfully.')
             });
